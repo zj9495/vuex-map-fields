@@ -23,7 +23,13 @@ function normalizeNamespace(fn) {
 }
 
 export function getField(state) {
-  return path => path.split(/[.[\]]+/).reduce((prev, key) => prev[key], state);
+  return path => {
+    if (path == '') {
+      return state;
+    } else {
+      return path.split(/[.[\]]+/).reduce((prev, key) => prev[key], state);
+    }
+  }
 }
 
 export function updateField(state, { path, value }) {
@@ -95,19 +101,53 @@ export const mapMultiRowFields = normalizeNamespace((
   }, {});
 });
 
+export const mapObjectFields = normalizeNamespace((
+  namespace,
+  paths,
+  getterType,
+  mutationType,
+) => {
+  const pathsObject = Array.isArray(paths) ? arrayToObject(paths) : paths;
+
+return Object.keys(pathsObject).reduce((entries, key) => {
+    let path = pathsObject[key].replace(/\.?\*/g, '');
+
+    // eslint-disable-next-line no-param-reassign
+    entries[key] = {
+      get() {
+        const store = this.$store;
+
+        const fieldsObject = store.getters[getterType](path);
+        if (!fieldsObject) {
+          return {}
+        }
+
+        return Object.keys(fieldsObject).reduce((prev, fieldKey) => {
+          const fieldPath = path ? `${path}.${fieldKey}`: fieldKey;
+
+          return Object.defineProperty(prev, fieldKey, {
+            get() {
+              return store.getters[getterType](fieldPath);
+            },
+            set(value) {
+              store.commit(mutationType, { path: fieldPath, value });
+            },
+          });
+        }, {});
+      },
+    };
+
+    return entries;
+  }, {});
+});
+
 export const createHelpers = ({ getterType, mutationType }) => ({
   [getterType]: getField,
   [mutationType]: updateField,
-  mapFields: normalizeNamespace((namespace, fields) => mapFields(
-    namespace,
-    fields,
-    getterType,
-    mutationType,
-  )),
-  mapMultiRowFields: normalizeNamespace((namespace, paths) => mapMultiRowFields(
-    namespace,
-    paths,
-    getterType,
-    mutationType,
-  )),
+  mapFields: normalizeNamespace((namespace, fields) =>
+    mapFields(namespace, fields, getterType, mutationType)),
+  mapMultiRowFields: normalizeNamespace((namespace, paths) =>
+    mapMultiRowFields(namespace, paths, getterType, mutationType)),
+  mapObjectFields: normalizeNamespace((namespace, paths) =>
+    mapObjectFields(namespace, paths, getterType, mutationType)),
 });
