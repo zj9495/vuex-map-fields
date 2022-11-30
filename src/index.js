@@ -1,4 +1,7 @@
+import { cloneDeep } from 'lodash'
+
 import arrayToObject from './lib/array-to-object';
+import DeepProxy from './lib/deep-proxy';
 
 function objectEntries(obj) {
   return Object.keys(obj).map(key => [key, obj[key]]);
@@ -23,13 +26,12 @@ function normalizeNamespace(fn) {
 }
 
 export function getField(state) {
-  return path => {
-    if (path == '') {
+  return (path) => {
+    if (path == ``) {
       return state;
-    } else {
-      return path.split(/[.[\]]+/).reduce((prev, key) => prev[key], state);
     }
-  }
+    return path.split(/[.[\]]+/).reduce((prev, key) => prev[key], state);
+  };
 }
 
 export function updateField(state, { path, value }) {
@@ -109,31 +111,27 @@ export const mapObjectFields = normalizeNamespace((
 ) => {
   const pathsObject = Array.isArray(paths) ? arrayToObject(paths) : paths;
 
-return Object.keys(pathsObject).reduce((entries, key) => {
-    let path = pathsObject[key].replace(/\.?\*/g, '');
+  return Object.keys(pathsObject).reduce((entries, key) => {
+    const path = pathsObject[key].replace(/\.?\*/g, ``);
 
     // eslint-disable-next-line no-param-reassign
     entries[key] = {
       get() {
         const store = this.$store;
 
-        const fieldsObject = store.getters[getterType](path);
+        const fieldsObject = cloneDeep(store.getters[getterType](path));
         if (!fieldsObject) {
-          return {}
+          return {};
         }
 
-        return Object.keys(fieldsObject).reduce((prev, fieldKey) => {
-          const fieldPath = path ? `${path}.${fieldKey}`: fieldKey;
+        const proxy = new DeepProxy(fieldsObject, {
+          set(target, fieldKey, value) {
+            const fieldPath = path ? `${path}.${fieldKey.join(`.`)}` : fieldKey;
+            store.commit(mutationType, { path: fieldPath, value });
+          },
+        });
 
-          return Object.defineProperty(prev, fieldKey, {
-            get() {
-              return store.getters[getterType](fieldPath);
-            },
-            set(value) {
-              store.commit(mutationType, { path: fieldPath, value });
-            },
-          });
-        }, {});
+        return proxy;
       },
     };
 
@@ -144,10 +142,7 @@ return Object.keys(pathsObject).reduce((entries, key) => {
 export const createHelpers = ({ getterType, mutationType }) => ({
   [getterType]: getField,
   [mutationType]: updateField,
-  mapFields: normalizeNamespace((namespace, fields) =>
-    mapFields(namespace, fields, getterType, mutationType)),
-  mapMultiRowFields: normalizeNamespace((namespace, paths) =>
-    mapMultiRowFields(namespace, paths, getterType, mutationType)),
-  mapObjectFields: normalizeNamespace((namespace, paths) =>
-    mapObjectFields(namespace, paths, getterType, mutationType)),
+  mapFields: normalizeNamespace((namespace, fields) => mapFields(namespace, fields, getterType, mutationType)),
+  mapMultiRowFields: normalizeNamespace((namespace, paths) => mapMultiRowFields(namespace, paths, getterType, mutationType)),
+  mapObjectFields: normalizeNamespace((namespace, paths) => mapObjectFields(namespace, paths, getterType, mutationType)),
 });

@@ -1,8 +1,30 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-  typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (factory((global['vuex-map-fields'] = {})));
-}(this, (function (exports) { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('lodash')) :
+  typeof define === 'function' && define.amd ? define(['exports', 'lodash'], factory) :
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['vuex-map-fields'] = {}, global.lodash));
+}(this, (function (exports, lodash) { 'use strict';
+
+  function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+      throw new TypeError("Cannot call a class as a function");
+    }
+  }
+
+  function _defineProperties(target, props) {
+    for (var i = 0; i < props.length; i++) {
+      var descriptor = props[i];
+      descriptor.enumerable = descriptor.enumerable || false;
+      descriptor.configurable = true;
+      if ("value" in descriptor) descriptor.writable = true;
+      Object.defineProperty(target, descriptor.key, descriptor);
+    }
+  }
+
+  function _createClass(Constructor, protoProps, staticProps) {
+    if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+    if (staticProps) _defineProperties(Constructor, staticProps);
+    return Constructor;
+  }
 
   function _defineProperty(obj, key, value) {
     if (key in obj) {
@@ -20,14 +42,27 @@
   }
 
   function _slicedToArray(arr, i) {
-    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest();
+    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
+  }
+
+  function _toConsumableArray(arr) {
+    return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread();
+  }
+
+  function _arrayWithoutHoles(arr) {
+    if (Array.isArray(arr)) return _arrayLikeToArray(arr);
   }
 
   function _arrayWithHoles(arr) {
     if (Array.isArray(arr)) return arr;
   }
 
+  function _iterableToArray(iter) {
+    if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
+  }
+
   function _iterableToArrayLimit(arr, i) {
+    if (typeof Symbol === "undefined" || !(Symbol.iterator in Object(arr))) return;
     var _arr = [];
     var _n = true;
     var _d = false;
@@ -53,8 +88,29 @@
     return _arr;
   }
 
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+
+    return arr2;
+  }
+
+  function _nonIterableSpread() {
+    throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
   function _nonIterableRest() {
-    throw new TypeError("Invalid attempt to destructure non-iterable instance");
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
   }
 
   function arrayToObject() {
@@ -72,6 +128,95 @@
     }, {});
   }
 
+  var DeepProxy = /*#__PURE__*/function () {
+    function DeepProxy(target, handler) {
+      _classCallCheck(this, DeepProxy);
+
+      this._preproxy = new WeakMap();
+      this._handler = handler;
+      return this.proxify(target, []);
+    }
+
+    _createClass(DeepProxy, [{
+      key: "makeHandler",
+      value: function makeHandler(path) {
+        var dp = this;
+        return {
+          set: function set(target, key, value, receiver) {
+            if (typeof value === "object") {
+              value = dp.proxify(value, [].concat(_toConsumableArray(path), [key]));
+            }
+
+            target[key] = value;
+
+            if (dp._handler.set) {
+              dp._handler.set(target, [].concat(_toConsumableArray(path), [key]), value, receiver);
+            }
+
+            return true;
+          },
+          deleteProperty: function deleteProperty(target, key) {
+            if (Reflect.has(target, key)) {
+              dp.unproxy(target, key);
+              var deleted = Reflect.deleteProperty(target, key);
+
+              if (deleted && dp._handler.deleteProperty) {
+                dp._handler.deleteProperty(target, [].concat(_toConsumableArray(path), [key]));
+              }
+
+              return deleted;
+            }
+
+            return false;
+          }
+        };
+      }
+    }, {
+      key: "unproxy",
+      value: function unproxy(obj, key) {
+        if (this._preproxy.has(obj[key])) {
+          // console.log('unproxy',key);
+          obj[key] = this._preproxy.get(obj[key]);
+
+          this._preproxy.delete(obj[key]);
+        }
+
+        for (var _i = 0, _Object$keys = Object.keys(obj[key]); _i < _Object$keys.length; _i++) {
+          var k = _Object$keys[_i];
+
+          if (typeof obj[key][k] === "object") {
+            this.unproxy(obj[key], k);
+          }
+        }
+      }
+    }, {
+      key: "proxify",
+      value: function proxify(obj, path) {
+        for (var _i2 = 0, _Object$keys2 = Object.keys(obj); _i2 < _Object$keys2.length; _i2++) {
+          var key = _Object$keys2[_i2];
+
+          if (typeof obj[key] === "object") {
+            obj[key] = this.proxify(obj[key], [].concat(_toConsumableArray(path), [key]));
+          }
+        }
+
+        var p = new Proxy(obj, this.makeHandler(path));
+
+        this._preproxy.set(p, obj);
+
+        return p;
+      }
+    }]);
+
+    return DeepProxy;
+  }();
+
+  function objectEntries(obj) {
+    return Object.keys(obj).map(function (key) {
+      return [key, obj[key]];
+    });
+  }
+
   function normalizeNamespace(fn) {
     return function () {
       for (var _len = arguments.length, params = new Array(_len), _key = 0; _key < _len; _key++) {
@@ -79,7 +224,7 @@
       }
 
       // eslint-disable-next-line prefer-const
-      var _ref = typeof params[0] === "string" ? params.concat() : [""].concat(params),
+      var _ref = typeof params[0] === "string" ? [].concat(params) : [""].concat(params),
           _ref2 = _slicedToArray(_ref, 4),
           namespace = _ref2[0],
           map = _ref2[1],
@@ -98,13 +243,13 @@
 
   function getField(state) {
     return function (path) {
-      if (path == '') {
+      if (path == "") {
         return state;
-      } else {
-        return path.split(/[.[\]]+/).reduce(function (prev, key) {
-          return prev[key];
-        }, state);
       }
+
+      return path.split(/[.[\]]+/).reduce(function (prev, key) {
+        return prev[key];
+      }, state);
     };
   }
   function updateField(state, _ref3) {
@@ -147,10 +292,10 @@
       entries[key] = {
         get: function get() {
           var store = this.$store;
-          var rows = store.getters[getterType](path);
-          return rows.map(function (fieldsObject, index) {
-            return Object.keys(fieldsObject).reduce(function (prev, fieldKey) {
-              var fieldPath = "".concat(path, "[").concat(index, "].").concat(fieldKey);
+          var rows = objectEntries(store.getters[getterType](path));
+          return rows.map(function (fieldsObject) {
+            return Object.keys(fieldsObject[1]).reduce(function (prev, fieldKey) {
+              var fieldPath = "".concat(path, "[").concat(fieldsObject[0], "].").concat(fieldKey);
               return Object.defineProperty(prev, fieldKey, {
                 get: function get() {
                   return store.getters[getterType](fieldPath);
@@ -172,31 +317,39 @@
   var mapObjectFields = normalizeNamespace(function (namespace, paths, getterType, mutationType) {
     var pathsObject = Array.isArray(paths) ? arrayToObject(paths) : paths;
     return Object.keys(pathsObject).reduce(function (entries, key) {
-      var path = pathsObject[key].replace(/\.?\*/g, ''); // eslint-disable-next-line no-param-reassign
+      var path = pathsObject[key].replace(/\.?\*/g, ""); // eslint-disable-next-line no-param-reassign
 
       entries[key] = {
         get: function get() {
           var store = this.$store;
-          var fieldsObject = store.getters[getterType](path);
+          var fieldsObject = lodash.cloneDeep(store.getters[getterType](path));
 
           if (!fieldsObject) {
             return {};
           }
 
-          return Object.keys(fieldsObject).reduce(function (prev, fieldKey) {
-            var fieldPath = path ? "".concat(path, ".").concat(fieldKey) : fieldKey;
-            return Object.defineProperty(prev, fieldKey, {
-              get: function get() {
-                return store.getters[getterType](fieldPath);
-              },
-              set: function set(value) {
-                store.commit(mutationType, {
-                  path: fieldPath,
-                  value: value
-                });
-              }
-            });
-          }, {});
+          var proxy = new DeepProxy(fieldsObject, {
+            set: function set(target, fieldKey, value) {
+              var fieldPath = path ? "".concat(path, ".").concat(fieldKey.join(".")) : fieldKey;
+              store.commit(mutationType, {
+                path: fieldPath,
+                value: value
+              });
+            }
+          });
+          console.log("proxy: ", proxy);
+          return proxy; // return Object.keys(fieldsObject).reduce((prev, fieldKey) => {
+          //   const fieldPath = path ? `${path}.${fieldKey}` : fieldKey;
+          //   console.log(`prev: `, prev);
+          //   return Object.defineProperty(prev, fieldKey, {
+          //     get() {
+          //       return store.getters[getterType](fieldPath);
+          //     },
+          //     set(value) {
+          //       store.commit(mutationType, { path: fieldPath, value });
+          //     },
+          //   });
+          // }, {});
         }
       };
       return entries;
@@ -216,12 +369,12 @@
     })), _ref5;
   };
 
+  exports.createHelpers = createHelpers;
   exports.getField = getField;
-  exports.updateField = updateField;
   exports.mapFields = mapFields;
   exports.mapMultiRowFields = mapMultiRowFields;
   exports.mapObjectFields = mapObjectFields;
-  exports.createHelpers = createHelpers;
+  exports.updateField = updateField;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
