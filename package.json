@@ -1,6 +1,6 @@
 {
   "name": "vuex-map-fields",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Enable two-way data binding for form fields saved in a Vuex store",
   "keywords": [
     "vue",
@@ -24,8 +24,7 @@
     "test:unit": "jest src",
     "test:integration": "yarn run fake-publish && jest test",
     "test:coverage": "yarn run fake-publish && jest --coverage --maxWorkers=4",
-    "test": "yarn run test:unit && yarn run test:integration",
-    "prepublishOnly": "yarn run lint && yarn test && yarn run build"
+    "test": "yarn run test:unit && yarn run test:integration"
   },
   "devDependencies": {
     "@avalanche/eslint-config": "^4.0.0",

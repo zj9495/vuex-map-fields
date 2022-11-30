@@ -333,19 +333,7 @@ var mapObjectFields = normalizeNamespace(function (namespace, paths, getterType,
             });
           }
         });
-        console.log("proxy: ", proxy);
-        return proxy; // return Object.keys(fieldsObject).reduce((prev, fieldKey) => {
-        //   const fieldPath = path ? `${path}.${fieldKey}` : fieldKey;
-        //   console.log(`prev: `, prev);
-        //   return Object.defineProperty(prev, fieldKey, {
-        //     get() {
-        //       return store.getters[getterType](fieldPath);
-        //     },
-        //     set(value) {
-        //       store.commit(mutationType, { path: fieldPath, value });
-        //     },
-        //   });
-        // }, {});
+        return proxy;
       }
     };
     return entries;
